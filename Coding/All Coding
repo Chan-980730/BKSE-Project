@@ -1,0 +1,60 @@
+1. 라이브러리 설치 및 임포트
+librosa : 오디오 파일을 로드하고, 오디오 신호를 처리하는 데 사용되는 라이브러리
+aubio : 오디오에서 피치나 비트 등을 추출하는 데 사용되는 라이브러리
+pretty_midi : MIDI 파일과 관련된 작업을 처리 / MIDI 값을 처리하고 변환
+matplotlib : 시각화를 위해 사용되는 라이브러리
+google.colab.files : Google Colab에서 파일을 업로드하고 처리하는데 사용되는 라이브러리 
+
+import : 외부 모듈이나 라이브러리를 현재 코드에서 사용할 수 있도록 불러오는 명령어 / 다른 사람들이 이미 작성한 코드나 기능을 가져와서 내 코드에서 사용할 수 있게 만드는 것
+from A import B -> A에서 특정 기능 B만 불러오기
+
+2. 파일 업로드
+uploaded = files.upload() -> Google Colab에서 파일을 업로드 / files.upload()를 사용하면 사용자가 로컬 파일을 Colab 환경에 업로드 가능
+file_name = next(iter(uploaded)) -> 업로드된 파일의 이름을 가져와 file_name에 저장
+
+3. 오디오 파일 로드
+y, sr = librosa.load(file_name, sr=None) -> librosa.load()를 사용하여 업로드된 오디오 파일을 로드 / y : 오디오 신호(파형) sr : 샘플링 레이트 / sr=None : 원본 오디오 샘플링 레이트를 그대로 사용
+
+4. 피치 추출 함수 정의
+def get_pitch(y, sr): -> get_pitch 함수 정의 : aubio 라이브러리의 pitch 기능을 사용하여 오디오에서 피치 추출
+    tolerance = 0.8 -> 피치 검출의 허용 오차 값
+    win_s = 4096 -> FFT 윈도우 크기 (신호를 나누는 구간의 크기) / 푸리에 변환을 할 때 한 번에 처리할 샘플의 크기
+    hop_s = 512 -> 분석 창의 이동 크기
+
+    pitch_o = pitch("yin", win_s, hop_s, sr) -> aubio의 yin 알고리즘을 사용하여 피치 추출
+    pitch_o.set_unit("Hz") -> 피치를 추출할 때 결과가 Hz 단위로 반환
+    pitch_o.set_tolerance(tolerance) -> 피치 추출 객체(pitch_o)에 허용 오차 값을 설정하는 코드
+
+    pitches = []
+    for i in range(0, len(y), hop_s): -> 오디오 신호를 hop_s 간격으로 나누어 피치를 추출 / 각 샘플을 aubio 피치 추출기를 통해 피치를 계산하고 pitches 리스트에 저장 / 음성이 없을 경우 np.nan 값을 추가하여 처리
+        sample = y[i:i + hop_s]
+        pitch_val = pitch_o(sample)[0]
+        pitches.append(pitch_val if pitch_val > 0 else np.nan)
+
+    return np.array(pitches)
+
+5. 피치 추출 실행
+pitches = get_pitch(y, sr) -> get_pitch 함수를 호출하여 오디오 신호에서 피치를 추출하고 pitches에 저장
+
+6. 피치에서 코드 추출
+def pitch_to_chord(pitches): -> pitch_to_chord 함수를 정의하고 pitches 배열에서 MIDI 값을 추출하여 코드 이름을 반환하는 함수
+    midi_values = [pretty_midi.note_number_to_name(int(librosa.hz_to_midi(p))) -> librosa.hz_to_midi(p) : 피치 p를 MIDI 번호로 변환 / pretty_midi.note_number_to_name() : MIDI 번호를 해당하는 음의 이름으로 변환 / midi_values : 추출된 피치를 MIDI 값으로 변환한 목록
+                   for p in pitches if not np.isnan(p)]
+
+    unique_notes = list(set(midi_values)) -> 코드 추출을 위해 중복되지 않는 음들만 반환 / 단순히 피치들로 코드 추론을 시도
+    return unique_notes
+
+7. 코드 추출 실행
+chords = pitch_to_chord(pitches) -> pitch_to_chord 함수를 호출하여 피치에서 MIDI 값을 통해 코드들을 추출하고 chords에 저장
+
+8. 코드 출력
+print("Detected chords:", chords) -> 추출된 코드들을 출력
+
+9. 피치 시각화 -> matplotlib를 사용하여 피치를 시간에 따른 그래프 형식으로 출력
+plt.figure(figsize=(10, 6))
+plt.plot(pitches, label='Pitch') -> pitches 배열의 값을 그래프에 표시
+plt.xlabel('Frames') -> X축은 프레임을 나타냄
+plt.ylabel('Frequency (Hz)') -> Y축은 주파수(피치)를 나타냄
+plt.title('Pitch over time') -> 그래프 제목을 설정
+plt.legend() -> 그래프에 범례를 추가
+plt.show() -> 그래프를 화면에 출
