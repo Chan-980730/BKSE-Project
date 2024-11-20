@@ -57,4 +57,5 @@ plt.xlabel('Frames') -> X축은 프레임을 나타냄
 plt.ylabel('Frequency (Hz)') -> Y축은 주파수(피치)를 나타냄
 plt.title('Pitch over time') -> 그래프 제목을 설정
 plt.legend() -> 그래프에 범례를 추가
-plt.show() -> 그래프를 화면에 출
+plt.show() -> 그래프를 화면에 출력
+
